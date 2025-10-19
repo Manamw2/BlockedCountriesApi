@@ -53,26 +53,39 @@ namespace BlockedCountriesApi.Controllers
 
             var countryCode = request.CountryCode.ToUpper();
 
-            // Check if already permanently blocked
+            // Check if already blocked
             var existing = await _repository.GetBlockedCountryAsync(countryCode);
             if (existing != null)
             {
-                return Conflict(new { message = $"Country {countryCode} is already permanently blocked." });
-            }
+                // If it's temporary, upgrade to permanent
+                if (existing.IsTemporary)
+                {
+                    existing.IsTemporary = false;
+                    existing.DurationMinutes = null;
+                    existing.ExpiresAt = null;
+                    existing.BlockedAt = DateTime.UtcNow;
 
-            // Check if temporarily blocked - if so, remove temporal block and upgrade to permanent
-            var isTemporallyBlocked = await _repository.IsTemporallyBlockedAsync(countryCode);
-            if (isTemporallyBlocked)
-            {
-                await _repository.RemoveTemporalBlockAsync(countryCode);
-                _logger.LogInformation("Upgrading temporal block to permanent block for {CountryCode}", countryCode);
+                    _logger.LogInformation("Upgrading temporal block to permanent block for {CountryCode}", countryCode);
+
+                    return Ok(new
+                    {
+                        message = $"Country {countryCode} has been upgraded from temporal to permanent block.",
+                        country = existing,
+                        upgraded = true
+                    });
+                }
+
+                return Conflict(new { message = $"Country {countryCode} is already permanently blocked." });
             }
 
             var blockedCountry = new BlockedCountry
             {
                 CountryCode = countryCode,
                 CountryName = CountryHelper.GetCountryName(countryCode),
-                BlockedAt = DateTime.UtcNow
+                BlockedAt = DateTime.UtcNow,
+                IsTemporary = false,
+                DurationMinutes = null,
+                ExpiresAt = null
             };
 
             var added = await _repository.AddBlockedCountryAsync(blockedCountry);
@@ -82,17 +95,13 @@ namespace BlockedCountriesApi.Controllers
                 return Conflict(new { message = $"Failed to block country {countryCode}." });
             }
 
-            var responseMessage = isTemporallyBlocked
-                ? $"Country {countryCode} has been upgraded from temporal to permanent block."
-                : $"Country {countryCode} has been successfully blocked.";
-
             _logger.LogInformation("Country {CountryCode} has been permanently blocked", countryCode);
 
             return Ok(new
             {
-                message = responseMessage,
+                message = $"Country {countryCode} has been successfully blocked.",
                 country = blockedCountry,
-                upgraded = isTemporallyBlocked
+                upgraded = false
             });
         }
 
@@ -203,23 +212,24 @@ namespace BlockedCountriesApi.Controllers
 
             var countryCode = request.CountryCode.ToUpper();
 
-            // Check if already permanently blocked
+            // Check if already blocked
             var existing = await _repository.GetBlockedCountryAsync(countryCode);
             if (existing != null)
             {
-                return Conflict(new
+                if (existing.IsTemporary)
                 {
-                    message = $"Country {countryCode} is already permanently blocked."
-                });
-            }
-
-            // Check if already temporarily blocked
-            if (await _repository.IsTemporallyBlockedAsync(countryCode))
-            {
-                return Conflict(new
+                    return Conflict(new
+                    {
+                        message = $"Country {countryCode} is already temporarily blocked."
+                    });
+                }
+                else
                 {
-                    message = $"Country {countryCode} is already temporarily blocked."
-                });
+                    return Conflict(new
+                    {
+                        message = $"Country {countryCode} is already permanently blocked."
+                    });
+                }
             }
 
             // Validate country code
@@ -228,14 +238,19 @@ namespace BlockedCountriesApi.Controllers
                 return BadRequest(new { message = $"Invalid country code: {countryCode}" });
             }
 
-            var temporalBlock = new TemporalBlock
+            var expiresAt = DateTime.UtcNow.AddMinutes(request.DurationMinutes);
+
+            var blockedCountry = new BlockedCountry
             {
                 CountryCode = countryCode,
+                CountryName = CountryHelper.GetCountryName(countryCode),
+                BlockedAt = DateTime.UtcNow,
+                IsTemporary = true,
                 DurationMinutes = request.DurationMinutes,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(request.DurationMinutes)
+                ExpiresAt = expiresAt
             };
 
-            var added = await _repository.AddTemporalBlockAsync(temporalBlock);
+            var added = await _repository.AddBlockedCountryAsync(blockedCountry);
 
             if (!added)
             {
@@ -249,14 +264,14 @@ namespace BlockedCountriesApi.Controllers
                 "Country {CountryCode} temporarily blocked for {Duration} minutes until {ExpiresAt}",
                 countryCode,
                 request.DurationMinutes,
-                temporalBlock.ExpiresAt);
+                expiresAt);
 
             return Ok(new
             {
                 message = $"Country {countryCode} temporarily blocked for {request.DurationMinutes} minutes.",
-                countryCode = temporalBlock.CountryCode,
-                durationMinutes = temporalBlock.DurationMinutes,
-                expiresAt = temporalBlock.ExpiresAt
+                countryCode = blockedCountry.CountryCode,
+                durationMinutes = blockedCountry.DurationMinutes,
+                expiresAt = blockedCountry.ExpiresAt
             });
         }
     }

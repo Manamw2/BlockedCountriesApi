@@ -49,3 +49,5 @@ D:\WorkSpace\New folder\BlockedCountriesApi\BlockedCountriesApi\obj\Debug\net9.0
 D:\WorkSpace\New folder\BlockedCountriesApi\BlockedCountriesApi\obj\Debug\net9.0\BlockedCountriesApi.pdb
 D:\WorkSpace\New folder\BlockedCountriesApi\BlockedCountriesApi\obj\Debug\net9.0\BlockedCountriesApi.genruntimeconfig.cache
 D:\WorkSpace\New folder\BlockedCountriesApi\BlockedCountriesApi\obj\Debug\net9.0\ref\BlockedCountriesApi.dll
+D:\WorkSpace\New folder\BlockedCountriesApi\BlockedCountriesApi\obj\Debug\net9.0\BlockedCountriesApi.sourcelink.json
+D:\WorkSpace\New folder\BlockedCountriesApi\BlockedCountriesApi\obj\Debug\net9.0\staticwebassets.upToDateCheck.txt

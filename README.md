@@ -70,7 +70,7 @@ The API will be available at:
 |--------|----------|-------------|
 | POST | `/api/countries/block` | Add a country to permanent block list |
 | DELETE | `/api/countries/block/{countryCode}` | Remove a country from block list |
-| GET | `/api/countries/blocked` | Get all blocked countries (paginated, searchable) |
+| GET | `/api/countries/blocked` | Get all blocked countries - both permanent and temporal (paginated, searchable) |
 | POST | `/api/countries/temporal-block` | Temporarily block a country (1-1440 minutes) |
 
 ### IP Validation
@@ -119,6 +119,38 @@ GET /api/ip/lookup?ipAddress=8.8.8.8
 GET /api/ip/check-block
 ```
 
+### Get Blocked Countries (includes both permanent and temporal)
+```bash
+GET /api/countries/blocked?page=1&pageSize=10
+```
+
+**Response Example:**
+```json
+{
+  "items": [
+    {
+      "countryCode": "US",
+      "countryName": "United States",
+      "blockedAt": "2025-10-19T10:00:00Z",
+      "isTemporary": false,
+      "durationMinutes": null,
+      "expiresAt": null
+    },
+    {
+      "countryCode": "EG",
+      "countryName": "Egypt",
+      "blockedAt": "2025-10-19T12:00:00Z",
+      "isTemporary": true,
+      "durationMinutes": 120,
+      "expiresAt": "2025-10-19T14:00:00Z"
+    }
+  ],
+  "page": 1,
+  "pageSize": 10,
+  "totalCount": 2
+}
+```
+
 ## Project Structure
 
 ```
@@ -137,9 +169,23 @@ BlockedCountriesApi/
 
 ## Key Features
 
+### Unified Blocked Countries Model
+Both permanent and temporal blocks are managed in a single unified list. Each blocked country entry includes:
+- `countryCode`: ISO 2-letter country code
+- `countryName`: Full country name
+- `blockedAt`: Timestamp when the block was created
+- `isTemporary`: `true` for temporal blocks, `false` for permanent blocks
+- `durationMinutes`: Duration in minutes for temporal blocks (null for permanent)
+- `expiresAt`: Expiration timestamp for temporal blocks (null for permanent)
+
+This unified approach ensures that:
+- The `/api/countries/blocked` endpoint returns **both** permanent and temporal blocks
+- You can easily identify block type and remaining time
+- Temporal blocks can be upgraded to permanent blocks
+
 ### In-Memory Storage
 All data is stored in memory using thread-safe collections:
-- `ConcurrentDictionary` for blocked countries
+- `ConcurrentDictionary` for blocked countries (both permanent and temporal)
 - `ConcurrentBag` for access logs
 
 ### Background Service
@@ -152,7 +198,10 @@ Automatically detects caller's IP address with support for:
 - Direct connection IP
 
 ### Temporal to Permanent Upgrade
-Temporarily blocked countries can be upgraded to permanent blocks seamlessly.
+Temporarily blocked countries can be upgraded to permanent blocks seamlessly by calling the permanent block endpoint. This will:
+- Set `isTemporary` to `false`
+- Clear the `durationMinutes` and `expiresAt` fields
+- Keep the country in the blocked list indefinitely
 
 ## Notes
 

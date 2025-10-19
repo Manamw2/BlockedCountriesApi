@@ -28,7 +28,7 @@ namespace BlockedCountriesApi.Services
                     var expiredBlocks = await repository.GetExpiredTemporalBlocksAsync();
                     foreach (var block in expiredBlocks)
                     {
-                        await repository.RemoveTemporalBlockAsync(block.CountryCode);
+                        await repository.RemoveBlockedCountryAsync(block.CountryCode);
                         _logger.LogInformation("Removed expired temporal block for {CountryCode}", block.CountryCode);
                     }
                 }

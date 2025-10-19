@@ -7,7 +7,6 @@ namespace BlockedCountriesApi.Repositories
     public class BlockedCountryRepository : IBlockedCountryRepository
     {
         private readonly ConcurrentDictionary<string, BlockedCountry> _blockedCountries = new();
-        private readonly ConcurrentDictionary<string, TemporalBlock> _temporalBlocks = new();
 
         public Task<bool> AddBlockedCountryAsync(BlockedCountry country)
         {
@@ -19,7 +18,7 @@ namespace BlockedCountriesApi.Repositories
             return Task.FromResult(_blockedCountries.TryRemove(countryCode.ToUpper(), out _));
         }
 
-        public Task<List<BlockedCountry>> GetAllBlockedCountriesAsync(int page, int pageSize, string searchTerm)
+        public Task<List<BlockedCountry>> GetAllBlockedCountriesAsync(int page, int pageSize, string? searchTerm = null)
         {
             var query = _blockedCountries.Values.AsEnumerable();
 
@@ -41,38 +40,25 @@ namespace BlockedCountriesApi.Repositories
 
         public Task<bool> IsCountryBlockedAsync(string countryCode)
         {
-            return Task.FromResult(
-                _blockedCountries.ContainsKey(countryCode.ToUpper()) ||
-                IsTemporallyBlockedAsync(countryCode).Result
-            );
-        }
-
-        public Task<bool> AddTemporalBlockAsync(TemporalBlock block)
-        {
-            return Task.FromResult(_temporalBlocks.TryAdd(block.CountryCode.ToUpper(), block));
-        }
-
-        public Task<List<TemporalBlock>> GetExpiredTemporalBlocksAsync()
-        {
-            var expired = _temporalBlocks.Values
-                .Where(b => b.ExpiresAt <= DateTime.UtcNow)
-                .ToList();
-            return Task.FromResult(expired);
-        }
-
-        public Task RemoveTemporalBlockAsync(string countryCode)
-        {
-            _temporalBlocks.TryRemove(countryCode.ToUpper(), out _);
-            return Task.CompletedTask;
-        }
-
-        public Task<bool> IsTemporallyBlockedAsync(string countryCode)
-        {
-            if (_temporalBlocks.TryGetValue(countryCode.ToUpper(), out var block))
+            if (_blockedCountries.TryGetValue(countryCode.ToUpper(), out var country))
             {
-                return Task.FromResult(block.ExpiresAt > DateTime.UtcNow);
+                // If it's temporary, check if it's still valid (not expired)
+                if (country.IsTemporary)
+                {
+                    return Task.FromResult(country.ExpiresAt.HasValue && country.ExpiresAt.Value > DateTime.UtcNow);
+                }
+                // Permanent block
+                return Task.FromResult(true);
             }
             return Task.FromResult(false);
+        }
+
+        public Task<List<BlockedCountry>> GetExpiredTemporalBlocksAsync()
+        {
+            var expired = _blockedCountries.Values
+                .Where(b => b.IsTemporary && b.ExpiresAt.HasValue && b.ExpiresAt.Value <= DateTime.UtcNow)
+                .ToList();
+            return Task.FromResult(expired);
         }
 
         public Task<BlockedCountry?> GetBlockedCountryAsync(string countryCode)
@@ -84,7 +70,7 @@ namespace BlockedCountriesApi.Repositories
             return Task.FromResult<BlockedCountry?>(null);
         }
 
-        public Task<int> GetTotalCountAsync(string searchTerm = null)
+        public Task<int> GetTotalCountAsync(string? searchTerm = null)
         {
             var query = _blockedCountries.Values.AsEnumerable();
 

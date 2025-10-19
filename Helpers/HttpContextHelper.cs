@@ -43,14 +43,15 @@ namespace BlockedCountriesApi.Helpers
                 // Handle IPv6 loopback
                 if (remoteIp == "::1")
                 {
-                    return "127.0.0.1";
+                    //default
+                    return "196.151.252.9";
                 }
 
                 return remoteIp;
             }
 
             // Default fallback
-            return "0.0.0.0";
+            return "196.151.252.9";
         }
 
         /// <summary>

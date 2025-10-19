@@ -152,14 +152,10 @@ namespace BlockedCountriesApi.Controllers
                 string? blockType = null;
                 if (isBlocked)
                 {
-                    var permanentBlock = await _countryRepository.GetBlockedCountryAsync(countryCode);
-                    if (permanentBlock != null)
+                    var blockedCountry = await _countryRepository.GetBlockedCountryAsync(countryCode);
+                    if (blockedCountry != null)
                     {
-                        blockType = "Permanent";
-                    }
-                    else if (await _countryRepository.IsTemporallyBlockedAsync(countryCode))
-                    {
-                        blockType = "Temporal";
+                        blockType = blockedCountry.IsTemporary ? "Temporal" : "Permanent";
                     }
                 }
 
