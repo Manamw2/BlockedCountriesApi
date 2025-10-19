@@ -1,0 +1,497 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Blocked Countries API",
+    "description": "An ASP.NET Core Web API for managing blocked countries and validating IP addresses using geolocation",
+    "contact": {
+      "name": "API Support",
+      "email": "support@blockedcountriesapi.com"
+    },
+    "version": "v1"
+  },
+  "paths": {
+    "/api/countries/block": {
+      "post": {
+        "tags": [
+          "Countries"
+        ],
+        "summary": "Add a country to the permanent blocked list",
+        "description": "Sample request:\r\n            \r\n    POST /api/countries/block\r\n    {\r\n       \"countryCode\": \"US\"\r\n    }\r\n            \r\nIf the country is temporarily blocked, it will be upgraded to a permanent block.",
+        "requestBody": {
+          "description": "The country code to block (e.g., \"US\", \"GB\", \"EG\")",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlockCountryRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlockCountryRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlockCountryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Country successfully blocked"
+          },
+          "400": {
+            "description": "Invalid request or country code format",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Country is already blocked",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/countries/block/{countryCode}": {
+      "delete": {
+        "tags": [
+          "Countries"
+        ],
+        "summary": "Remove a country from the blocked list",
+        "parameters": [
+          {
+            "name": "countryCode",
+            "in": "path",
+            "description": "The 2-letter country code to unblock (e.g., \"US\")",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Country successfully unblocked"
+          },
+          "400": {
+            "description": "Invalid country code format",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Country is not in the blocked list",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/countries/blocked": {
+      "get": {
+        "tags": [
+          "Countries"
+        ],
+        "summary": "Get all blocked countries with pagination and search",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number (default: 1)",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items per page (default: 10, max: 100)",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Search term to filter by country code or name",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns the paginated list of blocked countries"
+          },
+          "400": {
+            "description": "Invalid pagination parameters",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/countries/temporal-block": {
+      "post": {
+        "tags": [
+          "Countries"
+        ],
+        "summary": "Temporarily block a country for a specific duration",
+        "description": "Sample request:\r\n            \r\n    POST /api/countries/temporal-block\r\n    {\r\n       \"countryCode\": \"EG\",\r\n       \"durationMinutes\": 120\r\n    }\r\n            \r\nThe country will be automatically unblocked after the specified duration.\r\nA background service runs every 5 minutes to clean up expired blocks.",
+        "requestBody": {
+          "description": "Country code and duration in minutes (1-1440)",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemporalBlockRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemporalBlockRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemporalBlockRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Country successfully blocked temporarily"
+          },
+          "400": {
+            "description": "Invalid request or country code",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Country is already blocked (permanently or temporarily)",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ip/lookup": {
+      "get": {
+        "tags": [
+          "Ip"
+        ],
+        "summary": "Lookup country information for an IP address",
+        "description": "If ipAddress parameter is not provided, the API will automatically detect\r\nand use the caller's IP address (supporting X-Forwarded-For headers).\r\n\r\nSample request:\r\n            \r\n    GET /api/ip/lookup?ipAddress=8.8.8.8",
+        "parameters": [
+          {
+            "name": "ipAddress",
+            "in": "query",
+            "description": "IP address to lookup (optional - uses caller's IP if omitted)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns geolocation information"
+          },
+          "400": {
+            "description": "Invalid IP address format",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to fetch geolocation data"
+          }
+        }
+      }
+    },
+    "/api/ip/check-block": {
+      "get": {
+        "tags": [
+          "Ip"
+        ],
+        "summary": "Check if the caller's IP is blocked based on country",
+        "description": "This endpoint automatically:\r\n- Detects the caller's IP address (supports X-Forwarded-For headers)\r\n- Fetches country information via geolocation API\r\n- Checks if the country is blocked (permanent or temporal)\r\n- Logs the attempt with IP, country, timestamp, and user-agent\r\n\r\nSample response (blocked):\r\n            \r\n    {\r\n      \"ipAddress\": \"1.2.3.4\",\r\n      \"countryCode\": \"US\",\r\n      \"countryName\": \"United States\",\r\n      \"isBlocked\": true,\r\n      \"blockType\": \"Permanent\",\r\n      \"message\": \"Access denied. Your country (United States) is blocked (Permanent).\"\r\n    }",
+        "responses": {
+          "200": {
+            "description": "Access allowed - country is not blocked"
+          },
+          "403": {
+            "description": "Access denied - country is blocked",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to check block status"
+          }
+        }
+      }
+    },
+    "/api/logs/blocked-attempts": {
+      "get": {
+        "tags": [
+          "Logs"
+        ],
+        "summary": "Get paginated list of blocked access attempts",
+        "description": "Returns logs with the following information:\r\n- IP address of the request\r\n- Country code detected\r\n- Timestamp of the attempt\r\n- Whether the access was blocked (true/false)\r\n- User-Agent string from the request\r\n\r\nLogs are sorted by timestamp (newest first).",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number (default: 1)",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items per page (default: 10, max: 100)",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns the paginated list of logs"
+          },
+          "400": {
+            "description": "Invalid pagination parameters",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to retrieve logs"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BlockCountryRequest": {
+        "required": [
+          "countryCode"
+        ],
+        "type": "object",
+        "properties": {
+          "countryCode": {
+            "minLength": 1,
+            "pattern": "^[A-Z]{2}$",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true
+          },
+          "instance": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": { }
+      },
+      "TemporalBlockRequest": {
+        "required": [
+          "countryCode"
+        ],
+        "type": "object",
+        "properties": {
+          "countryCode": {
+            "minLength": 1,
+            "pattern": "^[A-Z]{2}$",
+            "type": "string"
+          },
+          "durationMinutes": {
+            "maximum": 1440,
+            "minimum": 1,
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

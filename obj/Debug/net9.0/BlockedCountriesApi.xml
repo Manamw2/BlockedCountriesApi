@@ -1,0 +1,168 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>BlockedCountriesApi</name>
+    </assembly>
+    <members>
+        <member name="M:BlockedCountriesApi.Controllers.CountriesController.BlockCountry(BlockedCountriesApi.Models.Dtos.BlockCountryRequest)">
+             <summary>
+             Add a country to the permanent blocked list
+             </summary>
+             <param name="request">The country code to block (e.g., "US", "GB", "EG")</param>
+             <returns>Success message with blocked country details</returns>
+             <response code="200">Country successfully blocked</response>
+             <response code="400">Invalid request or country code format</response>
+             <response code="409">Country is already blocked</response>
+             <remarks>
+             Sample request:
+            
+                 POST /api/countries/block
+                 {
+                    "countryCode": "US"
+                 }
+            
+             If the country is temporarily blocked, it will be upgraded to a permanent block.
+             </remarks>
+        </member>
+        <member name="M:BlockedCountriesApi.Controllers.CountriesController.UnblockCountry(System.String)">
+            <summary>
+            Remove a country from the blocked list
+            </summary>
+            <param name="countryCode">The 2-letter country code to unblock (e.g., "US")</param>
+            <returns>Success message</returns>
+            <response code="200">Country successfully unblocked</response>
+            <response code="400">Invalid country code format</response>
+            <response code="404">Country is not in the blocked list</response>
+        </member>
+        <member name="M:BlockedCountriesApi.Controllers.CountriesController.GetBlockedCountries(System.Int32,System.Int32,System.String)">
+            <summary>
+            Get all blocked countries with pagination and search
+            </summary>
+            <param name="page">Page number (default: 1)</param>
+            <param name="pageSize">Number of items per page (default: 10, max: 100)</param>
+            <param name="search">Search term to filter by country code or name</param>
+            <returns>Paginated list of blocked countries</returns>
+            <response code="200">Returns the paginated list of blocked countries</response>
+            <response code="400">Invalid pagination parameters</response>
+        </member>
+        <member name="M:BlockedCountriesApi.Controllers.CountriesController.TemporalBlock(BlockedCountriesApi.Models.Dtos.TemporalBlockRequest)">
+             <summary>
+             Temporarily block a country for a specific duration
+             </summary>
+             <param name="request">Country code and duration in minutes (1-1440)</param>
+             <returns>Success message with expiration details</returns>
+             <response code="200">Country successfully blocked temporarily</response>
+             <response code="400">Invalid request or country code</response>
+             <response code="409">Country is already blocked (permanently or temporarily)</response>
+             <remarks>
+             Sample request:
+            
+                 POST /api/countries/temporal-block
+                 {
+                    "countryCode": "EG",
+                    "durationMinutes": 120
+                 }
+            
+             The country will be automatically unblocked after the specified duration.
+             A background service runs every 5 minutes to clean up expired blocks.
+             </remarks>
+        </member>
+        <member name="M:BlockedCountriesApi.Controllers.IpController.LookupIp(System.String)">
+             <summary>
+             Lookup country information for an IP address
+             </summary>
+             <param name="ipAddress">IP address to lookup (optional - uses caller's IP if omitted)</param>
+             <returns>Geolocation details including country, city, and coordinates</returns>
+             <response code="200">Returns geolocation information</response>
+             <response code="400">Invalid IP address format</response>
+             <response code="500">Failed to fetch geolocation data</response>
+             <remarks>
+             If ipAddress parameter is not provided, the API will automatically detect
+             and use the caller's IP address (supporting X-Forwarded-For headers).
+             
+             Sample request:
+            
+                 GET /api/ip/lookup?ipAddress=8.8.8.8
+            
+             </remarks>
+        </member>
+        <member name="M:BlockedCountriesApi.Controllers.IpController.CheckBlock">
+             <summary>
+             Check if the caller's IP is blocked based on country
+             </summary>
+             <returns>Block status with country information</returns>
+             <response code="200">Access allowed - country is not blocked</response>
+             <response code="403">Access denied - country is blocked</response>
+             <response code="500">Failed to check block status</response>
+             <remarks>
+             This endpoint automatically:
+             - Detects the caller's IP address (supports X-Forwarded-For headers)
+             - Fetches country information via geolocation API
+             - Checks if the country is blocked (permanent or temporal)
+             - Logs the attempt with IP, country, timestamp, and user-agent
+             
+             Sample response (blocked):
+            
+                 {
+                   "ipAddress": "1.2.3.4",
+                   "countryCode": "US",
+                   "countryName": "United States",
+                   "isBlocked": true,
+                   "blockType": "Permanent",
+                   "message": "Access denied. Your country (United States) is blocked (Permanent)."
+                 }
+            
+             </remarks>
+        </member>
+        <member name="M:BlockedCountriesApi.Controllers.LogsController.GetBlockedAttempts(System.Int32,System.Int32)">
+            <summary>
+            Get paginated list of blocked access attempts
+            </summary>
+            <param name="page">Page number (default: 1)</param>
+            <param name="pageSize">Number of items per page (default: 10, max: 100)</param>
+            <returns>Paginated list of access attempt logs</returns>
+            <response code="200">Returns the paginated list of logs</response>
+            <response code="400">Invalid pagination parameters</response>
+            <response code="500">Failed to retrieve logs</response>
+            <remarks>
+            Returns logs with the following information:
+            - IP address of the request
+            - Country code detected
+            - Timestamp of the attempt
+            - Whether the access was blocked (true/false)
+            - User-Agent string from the request
+            
+            Logs are sorted by timestamp (newest first).
+            </remarks>
+        </member>
+        <member name="M:BlockedCountriesApi.Helpers.CountryHelper.GetCountryName(System.String)">
+            <summary>
+            Gets the country name from a country code
+            </summary>
+            <param name="countryCode">The 2-letter country code</param>
+            <returns>The country name, or the country code itself if not found</returns>
+        </member>
+        <member name="M:BlockedCountriesApi.Helpers.HttpContextHelper.GetClientIpAddress(Microsoft.AspNetCore.Http.HttpContext)">
+            <summary>
+            Gets the client's IP address from HttpContext
+            Handles X-Forwarded-For and X-Real-IP headers for proxies/load balancers
+            </summary>
+            <param name="httpContext">The HTTP context</param>
+            <returns>The client's IP address</returns>
+        </member>
+        <member name="M:BlockedCountriesApi.Helpers.HttpContextHelper.GetUserAgent(Microsoft.AspNetCore.Http.HttpContext)">
+            <summary>
+            Gets the User-Agent header from the HTTP request
+            </summary>
+            <param name="httpContext">The HTTP context</param>
+            <returns>The User-Agent string, or "Unknown" if not available</returns>
+        </member>
+        <member name="M:BlockedCountriesApi.Validators.CountryCodeValidator.IsValid(System.String)">
+            <summary>
+            Validates if a country code is valid
+            </summary>
+            <param name="countryCode">The country code to validate</param>
+            <returns>True if valid, false otherwise</returns>
+        </member>
+    </members>
+</doc>
